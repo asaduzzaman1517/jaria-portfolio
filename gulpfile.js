@@ -1,4 +1,5 @@
 var gulp = require("gulp"),
+  babel = require("gulp-babel"),
   autoprefixer = require("gulp-autoprefixer"),
   browserSync = require("browser-sync").create(),
   reload = browserSync.reload,
@@ -21,7 +22,14 @@ var styleDist = "dist/css/";
 var styleWatch = "src/sass/**/*.scss";
 
 //Js
-var jsSrc = ["node_modules/jquery/dist/jquery.min.js", "src/js/**/*.js"];
+var jsSrc = [
+  "node_modules/jquery/dist/jquery.js",
+  "node_modules/jquery-ui/ui/effect.js",
+  "node_modules/popper.js/dist/popper.js",
+  "node_modules/bootstrap/dist/js/bootstrap.js",
+  "node_modules/filterizr/dist/jquery.filterizr.min.js",
+  "src/js/**/*.js"
+];
 var jsDist = "dist/js/";
 
 //Image
@@ -32,8 +40,9 @@ var imgDist = "dist/img/";
 function watch() {
   browserSync.init({
     server: {
-      baseDir: "dist/"
-    }
+      baseDir: "./dist/"
+    },
+    notify: false
   });
   gulp.watch(htmlSrc, html);
   gulp.watch(styleWatch, style);
@@ -41,7 +50,7 @@ function watch() {
   gulp.watch(imgSrc, imgmin);
   gulp
     .watch([htmlWatch, jsDist + "bundle.js", styleDist + "style.css"])
-    .on("change", browserSync.reload);
+    .on("change", reload);
 }
 
 //Html
@@ -60,7 +69,7 @@ function style() {
       }).on("error", sass.logError)
     )
     .pipe(autoprefixer("last 2 versions"))
-    .pipe(sourcemaps.write())
+    .pipe(sourcemaps.write("."))
     .pipe(lineec())
     .pipe(gulp.dest(styleDist));
 }
@@ -69,9 +78,16 @@ function style() {
 function javascript() {
   return gulp
     .src(jsSrc)
+    .pipe(sourcemaps.init())
+    .pipe(
+      babel({
+        presets: ["@babel/env"]
+      })
+    )
     .pipe(concat("bundle.js"))
     .pipe(uglify())
     .pipe(lineec())
+    .pipe(sourcemaps.write("."))
     .pipe(gulp.dest(jsDist));
 }
 
@@ -84,18 +100,14 @@ function imgmin() {
       imagemin([
         imagemin.gifsicle({ interlaced: true }),
         imagemin.jpegtran({ progressive: true }),
-        imagemin.optipng({ optimizationLevel: 5 })
+        imagemin.optipng({ optimizationLevel: 5 }),
+        imagemin.svgo({
+          plugins: [{ removeViewBox: true }, { cleanupIDs: false }]
+        })
       ])
     )
     .pipe(gulp.dest(imgDist));
 }
-
-//Export function
-exports.html = html;
-exports.style = style;
-exports.javascript = javascript;
-exports.watch = watch;
-exports.imgmin = imgmin;
 
 //Deafault Task
 var build = gulp.parallel(watch);
